@@ -1,26 +1,39 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_airpods/models/device_motion_data.dart';
+import 'package:rxdart/subjects.dart';
 
 /// API for accessing information about the currently connected airpods.
 class FlutterAirpods {
-  static const EventChannel _motionChannel =
-      EventChannel("flutter_airpods.motion");
+  // this is the way
+  // ignore: prefer_void_to_null
+  static Null _nil;
 
-  /// The getAirPodsDeviceMotionUpdates method allows to receive updates on the motion data of the currently connected airpods.
-  static Stream<DeviceMotionData> get getAirPodsDeviceMotionUpdates {
-    /// The data gets sent over the event channel.
-    /// Every incoming event gets read as a JSON and then
-    /// is mapped as [DeviceMotionData].
-    return _motionChannel.receiveBroadcastStream().map((event) {
-      Map<String, dynamic> json = jsonDecode(event);
+  bool _initialized = false;
+  static final FlutterAirpods _instance = FlutterAirpods._();
+  factory FlutterAirpods() => _instance;
+  final ValueNotifier worn = ValueNotifier(false);
 
-      /// Creates a [DeviceMotionData] from a JSON.
-      DeviceMotionData deviceMotionData = DeviceMotionData.fromJson(json);
+  final deviceMotion = BehaviorSubject<DeviceMotionData?>.seeded(null);
 
-      /// Returns transformed [DeviceMotionData]
-      return deviceMotionData;
-    });
+  FlutterAirpods._() {
+    _constructor();
+  }
+
+  _constructor() {
+    if (_initialized) return;
+    _initialized = true;
+
+    deviceMotion.addStream(const EventChannel("flutter_airpods.motion")
+        .receiveBroadcastStream()
+        .map((event) {
+      worn.value = true;
+      return DeviceMotionData.fromJson(jsonDecode(event));
+    }).timeout(const Duration(milliseconds: 500), onTimeout: (_) {
+      deviceMotion.add(_nil);
+      worn.value = false;
+    }));
   }
 }
