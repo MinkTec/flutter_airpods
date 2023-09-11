@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -19,7 +20,12 @@ class FlutterAirpods {
   final deviceMotion = BehaviorSubject<DeviceMotionData?>.seeded(null);
 
   FlutterAirpods._() {
-    _constructor();
+    Platform.isIOS || Platform.isMacOS ? _constructor() : _dummyConstructor();
+  }
+
+  _dummyConstructor() {
+    if (_initialized) return;
+    _initialized = true;
   }
 
   _constructor() {
